@@ -674,8 +674,12 @@ BOOL IsVeryLongPath(LPCWSTR pszPathName)
 DWORD WFJunction(LPCWSTR pszLinkDirectory, LPCWSTR pszLinkTarget)
 {
    DWORD        dwRet = ERROR_SUCCESS;
-   // Size assumption: We have to copy 2 path with each MAXPATHLEN long onto the structure. So we take 3 times MAXPATHLEN
-   char         reparseBuffer[MAXPATHLEN * 3];
+   // Size: reparse header + two WCHAR paths (substitute name + print name),
+   // each up to MAXPATHLEN wide chars plus a NUL. Paths are WCHAR (2 bytes),
+   // so the budget must be in wide chars, not bytes. The previous sizing of
+   // 3*MAXPATHLEN *bytes* was too small for two ~MAXPATHLEN-char paths and
+   // could overflow this stack buffer for junction targets over ~761 chars.
+   char         reparseBuffer[sizeof(REPARSE_DATA_BUFFER) + 2 * (MAXPATHLEN + 1) * sizeof(WCHAR)];
    WCHAR        szDirectoryName[MAXPATHLEN];
    WCHAR        szTargetName[MAXPATHLEN];
    PWCHAR       szFilePart;
@@ -749,13 +753,19 @@ DWORD WFJunction(LPCWSTR pszLinkDirectory, LPCWSTR pszLinkTarget)
    memset(reparseJunctionInfo, 0, sizeof(REPARSE_DATA_BUFFER));
    reparseJunctionInfo->ReparseTag = IO_REPARSE_TAG_MOUNT_POINT;
 
+   // Capacity of PathBuffer in wide chars, derived from the real buffer size.
+   size_t cchPathBuffer = (sizeof(reparseBuffer) -
+      FIELD_OFFSET(REPARSE_DATA_BUFFER, MountPointReparseBuffer.PathBuffer)) / sizeof(WCHAR);
+   size_t cchSubName = wcslen(szSubstituteName);
+
    reparseJunctionInfo->MountPointReparseBuffer.SubstituteNameOffset = 0x00;
-   reparseJunctionInfo->MountPointReparseBuffer.SubstituteNameLength = (USHORT)(wcslen(szSubstituteName) * sizeof(wchar_t));
-   wcscpy_s(reparseJunctionInfo->MountPointReparseBuffer.PathBuffer, MAXPATHLEN, szSubstituteName);
+   reparseJunctionInfo->MountPointReparseBuffer.SubstituteNameLength = (USHORT)(cchSubName * sizeof(wchar_t));
+   wcscpy_s(reparseJunctionInfo->MountPointReparseBuffer.PathBuffer, cchPathBuffer, szSubstituteName);
 
    reparseJunctionInfo->MountPointReparseBuffer.PrintNameOffset = reparseJunctionInfo->MountPointReparseBuffer.SubstituteNameLength + sizeof(wchar_t);
    reparseJunctionInfo->MountPointReparseBuffer.PrintNameLength = (USHORT)(wcslen(szTargetName) * sizeof(wchar_t));
-   wcscpy_s(reparseJunctionInfo->MountPointReparseBuffer.PathBuffer + wcslen(szSubstituteName) + 1, MAXPATHLEN, szTargetName);
+   // Pass the REMAINING space after the substitute name + NUL, not MAXPATHLEN.
+   wcscpy_s(reparseJunctionInfo->MountPointReparseBuffer.PathBuffer + cchSubName + 1, cchPathBuffer - (cchSubName + 1), szTargetName);
 
    reparseJunctionInfo->ReparseDataLength = (USHORT)(reparseJunctionInfo->MountPointReparseBuffer.SubstituteNameLength +
       reparseJunctionInfo->MountPointReparseBuffer.PrintNameLength +
