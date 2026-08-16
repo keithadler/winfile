@@ -285,3 +285,30 @@ __pycache__/
 Makefile.depends
 *.exe
 tags
+
+# ---- winfile-security fork additions ----
+# Build outputs (mingw-w64 cross-compile)
+*.o
+/winfile
+/winfile.exe
+*.log
+
+# Analysis artifacts (not source)
+/cppcheck.out
+/warn.log
+/wf-results.sarif
+/wf-codeql-db/
+
+# Fuzzing: keep sources/docs/seeds/minimized crashes; ignore built binaries
+/fuzz/fuzz_lfn
+/fuzz/fuzz_merge
+/fuzz/fuzz_lfn_repro
+/fuzz/fuzz_merge_repro
+/fuzz/fuzz_junction_repro
+/fuzz/fuzz_junction_800
+/fuzz/fuzz_junction_260
+/fuzz/corpus/
+/fuzz/corpus_merge/
+
+# macOS debug bundles
+*.dSYM/

@@ -1,5 +1,15 @@
 
 
+# 🔒 Fork note: security fix
+
+This fork fixes a **stack buffer overflow in junction/symlink creation**
+(`WFJunction`, [`src/lfn.c`](src/lfn.c)) that is present in upstream and cannot
+be fixed there because the repository is archived. Details, severity, and a
+reproducer are in **[SECURITY-FIX.md](SECURITY-FIX.md)** and
+[fuzz/FINDINGS.md](fuzz/FINDINGS.md).
+
+---
+
 # Announcement: Repository to be archived on March 1, 2025
 We realize this may come as a shock and disappointment to our contributors but we simply do not have the expertise or resources within the organization to continue to maintain this project. 
 While you may continue to work on your own private fork, remember that use of archived repositories are more risky from a security standpoint and caution should be taken. 
